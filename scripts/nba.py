@@ -1,40 +1,34 @@
 import pandas as pd
-import requests
 import numpy as np
+import json
 
+from utils import TEAM_IDS
+
+from nba_api.stats.endpoints import BoxScoreSummaryV2
 from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.endpoints import TeamGameLog
 from nba_api.stats.static import teams
 
-SEASON_YEAR = 2023
-NBA_SCH_URL = f"https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/{SEASON_YEAR}/league/00_full_schedule.json"
+def get_recent_game(team_id):
+    gameLogs = TeamGameLog(team_id)
+    gameLog = gameLogs.get_dict()['resultSets'][0]
+    
+    game = {
+        x: y for x, y in zip(gameLog['headers'], gameLog['rowSet'][0])
+    }
 
-def get_schedule(team):
-    global NBA_SCH_URL
+    return game
 
-    games = []
+def get_score(game_id):
+    scoreData = BoxScoreSummaryV2(game_id)
+    scoreData = scoreData.get_dict()['resultSets'][5]['rowSet']
 
-    schedule = requests.get(NBA_SCH_URL).json()['lscd']
-    for month in schedule:
-        month_games = month['mscd']['g']
-        for game in month_games:
-            home_team = game['h']['ta']
-            away_team = game['v']['ta']
-            if home_team == team or away_team == team:
-                games.append(game['gdte'])
+    score = {
+        scoreData[0][4]: scoreData[0][-1],
+        scoreData[1][4]: scoreData[1][-1]
+    }
 
-    games.sort()
-
-    return games
-
-def get_games():
-    gamefinder = leaguegamefinder.LeagueGameFinder(team_id_nullable=teams.find_team_by_abbreviation('nyk')['id'])
-    games = gamefinder.get_data_frames()[0]
-    print(games.iloc[0])
-    # games = teamgamelog.TeamGameLog(team_id=teams.find_team_by_abbreviation('nyk')['id'])
-    # games.get_request()
-    # print(games.get_json())
+    return score
 
 if __name__ == "__main__":
-    # get_games()
-    games = get_schedule('NYK')
-    print(games)
+    print(get_score(get_recent_game(TEAM_IDS['NYK'])['Game_ID']))
